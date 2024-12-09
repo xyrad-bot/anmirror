@@ -75,7 +75,7 @@ async def edit_video_metadata(user_id, file_path):
         return
 
     cmd = [
-        'ffmpeg', '-y', '-i', file_path, '-c', 'copy',
+        'xytool', '-y', '-i', file_path, '-c', 'copy',
         '-metadata:s:v:0', f'title={metadata_text}',
         '-metadata', f'title={metadata_text}',
         '-metadata', 'copyright=',
@@ -437,7 +437,7 @@ def check_storage_threshold(size, threshold, arch=False, alloc=False):
     return True
 
 
-async def command_listener(message, isClone=False, isGdrive=False, isJd=False, isLeech=False, isMega=False, isMirror=False, isQbit=False, isYtdl=False):
+async def command_listener(message, isClone=False, isGdrive=False, isLeech=False, isMega=False, isMirror=False, isQbit=False, isYtdl=False):
     msg = ""
     tag = await get_tag(message)
 
@@ -446,8 +446,6 @@ async def command_listener(message, isClone=False, isGdrive=False, isJd=False, i
             msg = f"Hey {tag}.\n\nCloning file in Gdrive is disabled."
         elif isGdrive and not config_dict['GDRIVE_ENABLED']:
             msg = f"Hey {tag}.\n\nGdrive link is disabled."
-        elif isJd and not config_dict['JD_ENABLED']:
-            msg = f"Hey {tag}.\n\nJDownload is disabled."
         elif isLeech and not config_dict['LEECH_ENABLED']:
             msg = f"Hey {tag}.\n\nLeeching file in telegram is disabled."
         elif isMega and not config_dict['MEGA_ENABLED']:

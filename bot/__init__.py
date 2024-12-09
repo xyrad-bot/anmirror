@@ -16,7 +16,7 @@ from logging import (
 from os import remove, path as ospath, environ
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from pyrogram import Client as tgClient, enums
+from pyrogram import Client as tgClient, enums, utils
 from qbittorrentapi import Client as qbClient
 from socket import setdefaulttimeout
 from subprocess import Popen, run
@@ -29,6 +29,9 @@ from uvloop import install
 
 install()
 setdefaulttimeout(600)
+
+utils.MIN_CHAT_ID = -999999999999
+utils.MIN_CHANNEL_ID = -100999999999999
 
 getLogger("qbittorrentapi").setLevel(INFO)
 getLogger("requests").setLevel(INFO)
@@ -49,9 +52,8 @@ LOGGER = getLogger(__name__)
 
 load_dotenv("config.env", override=True)
 
-Intervals = {"status": {}, "qb": "", "jd": "", "stopAll": False}
+Intervals = {"status": {}, "qb": "", "stopAll": False}
 QbTorrents = {}
-jd_downloads = {}
 DRIVES_NAMES = []
 DRIVES_IDS = []
 INDEX_URLS = []
@@ -77,7 +79,6 @@ except:
 task_dict_lock = Lock()
 queue_dict_lock = Lock()
 qb_listener_lock = Lock()
-jd_lock = Lock()
 cpu_eater_lock = Lock()
 subprocess_lock = Lock()
 status_dict = {}
@@ -122,10 +123,6 @@ if DATABASE_URL:
                     file_ = key.replace("__", ".")
                     with open(file_, "wb+") as f:
                         f.write(value)
-                    if file_ == "cfg.zip":
-                        run(["rm", "-rf", "/JDownloader/cfg"])
-                        run(["7z", "x", "cfg.zip", "-o/JDownloader"])
-                        remove("cfg.zip")
         if a2c_options := db.settings.aria2c.find_one({"_id": bot_id}):
             del a2c_options["_id"]
             aria2_options = a2c_options
@@ -145,7 +142,7 @@ if not ospath.exists(".netrc"):
     with open(".netrc", "w"):
         pass
 run(
-    "chmod 600 .netrc && cp .netrc /root/.netrc && chmod +x aria-nox.sh && ./aria-nox.sh",
+    "chmod 600 .netrc && cp .netrc /root/.netrc && chmod +x worker.sh && ./worker.sh",
     shell=True,
 )
 
@@ -223,11 +220,11 @@ else:
     IS_PREMIUM_USER = False
     user = ""
 
-JD_EMAIL = environ.get("JD_EMAIL", "")
-JD_PASS = environ.get("JD_PASS", "")
-if len(JD_EMAIL) == 0 or len(JD_PASS) == 0:
-    JD_EMAIL = ""
-    JD_PASS = ""
+MEGA_EMAIL = environ.get("MEGA_EMAIL", "")
+MEGA_PASS = environ.get("MEGA_PASS", "")
+if len(MEGA_EMAIL) == 0 or len(MEGA_PASS) == 0:
+    MEGA_EMAIL = ""
+    MEGA_PASS = ""
 
 FILELION_API = environ.get("FILELION_API", "")
 if len(FILELION_API) == 0:
@@ -382,9 +379,6 @@ DISABLE_DRIVE_LINK = DISABLE_DRIVE_LINK.lower() == 'true'
 GDRIVE_ENABLED = environ.get('GDRIVE_ENABLED', '')
 GDRIVE_ENABLED = GDRIVE_ENABLED.lower() == 'true'
 
-JD_ENABLED = environ.get('JD_ENABLED', '')
-JD_ENABLED = JD_ENABLED.lower() == 'true'
-
 LEECH_ENABLED = environ.get('LEECH_ENABLED', '')
 LEECH_ENABLED = LEECH_ENABLED.lower() == 'true'
 
@@ -512,8 +506,8 @@ config_dict = {
     "INCOMPLETE_TASK_NOTIFIER": INCOMPLETE_TASK_NOTIFIER,
     "INDEX_URL": INDEX_URL,
     "IS_TEAM_DRIVE": IS_TEAM_DRIVE,
-    "JD_EMAIL": JD_EMAIL,
-    "JD_PASS": JD_PASS,
+    "MEGA_EMAIL": MEGA_EMAIL,
+    "MEGA_PASS": MEGA_PASS,
     "LEECH_DUMP_CHAT": LEECH_DUMP_CHAT,
     "LEECH_FILENAME_PREFIX": LEECH_FILENAME_PREFIX,
     "LEECH_SPLIT_SIZE": LEECH_SPLIT_SIZE,
@@ -554,7 +548,6 @@ config_dict = {
     "CLONE_ENABLED": CLONE_ENABLED,
     "DISABLE_DRIVE_LINK": DISABLE_DRIVE_LINK,
     "GDRIVE_ENABLED": GDRIVE_ENABLED,
-    "JD_ENABLED": JD_ENABLED,
     "LEECH_ENABLED": LEECH_ENABLED,
     "MEGA_ENABLED": MEGA_ENABLED,
     "MIRROR_ENABLED": MIRROR_ENABLED,
@@ -611,11 +604,11 @@ if ospath.exists('shorteners.txt'):
             if len(temp) == 2:
                 shorteneres_list.append({'domain': temp[0],'api_key': temp[1]})
 
-if BASE_URL:
-    Popen(
-        f"gunicorn web.wserver:app --bind 0.0.0.0:{BASE_URL_PORT} --worker-class gevent",
-        shell=True,
-    )
+PORT = environ.get("PORT")
+Popen(
+    f"gunicorn web.wserver:app --bind 0.0.0.0:{PORT} --worker-class gevent",
+    shell=True,
+)
 
 if ospath.exists('accounts.zip'):
     if ospath.exists('accounts'):
